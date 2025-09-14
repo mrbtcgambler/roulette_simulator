@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Roulette Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation;
+        }
+        .bet-spot {
+            transition: all 0.2s ease-in-out;
+            position: relative;
+        }
+        .bet-spot:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+            z-index: 10;
+        }
+        .bet-chip {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60%;
+            height: 60%;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.75rem;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+            background: radial-gradient(circle, #ef4444, #b91c1c);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none; /* Make chip non-interactive */
+        }
+        .winning-marker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 80%;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            border: 2px solid yellow;
+            animation: pulse 1.5s infinite;
+            pointer-events: none;
+        }
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.7; }
+            70% { transform: translate(-50%, -50%) scale(1.05); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.7; }
+        }
+        /* Custom grid layout for the roulette board */
+        .roulette-grid {
+            display: grid;
+            grid-template-columns: repeat(14, minmax(0, 1fr));
+            grid-template-rows: repeat(5, minmax(0, 1fr));
+            gap: 4px;
+        }
+        .num-0 { grid-area: 1 / 1 / 4 / 2; }
+        .num-3 { grid-area: 1 / 2 / 2 / 3; } .num-6 { grid-area: 1 / 3 / 2 / 4; } .num-9 { grid-area: 1 / 4 / 2 / 5; } .num-12 { grid-area: 1 / 5 / 2 / 6; } .num-15 { grid-area: 1 / 6 / 2 / 7; } .num-18 { grid-area: 1 / 7 / 2 / 8; } .num-21 { grid-area: 1 / 8 / 2 / 9; } .num-24 { grid-area: 1 / 9 / 2 / 10; } .num-27 { grid-area: 1 / 10 / 2 / 11; } .num-30 { grid-area: 1 / 11 / 2 / 12; } .num-33 { grid-area: 1 / 12 / 2 / 13; } .num-36 { grid-area: 1 / 13 / 2 / 14; }
+        .num-2 { grid-area: 2 / 2 / 3 / 3; } .num-5 { grid-area: 2 / 3 / 3 / 4; } .num-8 { grid-area: 2 / 4 / 3 / 5; } .num-11 { grid-area: 2 / 5 / 3 / 6; } .num-14 { grid-area: 2 / 6 / 3 / 7; } .num-17 { grid-area: 2 / 7 / 3 / 8; } .num-20 { grid-area: 2 / 8 / 3 / 9; } .num-23 { grid-area: 2 / 9 / 3 / 10; } .num-26 { grid-area: 2 / 10 / 3 / 11; } .num-29 { grid-area: 2 / 11 / 3 / 12; } .num-32 { grid-area: 2 / 12 / 3 / 13; } .num-35 { grid-area: 2 / 13 / 3 / 14; }
+        .num-1 { grid-area: 3 / 2 / 4 / 3; } .num-4 { grid-area: 3 / 3 / 4 / 4; } .num-7 { grid-area: 3 / 4 / 4 / 5; } .num-10 { grid-area: 3 / 5 / 4 / 6; } .num-13 { grid-area: 3 / 6 / 4 / 7; } .num-16 { grid-area: 3 / 7 / 4 / 8; } .num-19 { grid-area: 3 / 8 / 4 / 9; } .num-22 { grid-area: 3 / 9 / 4 / 10; } .num-25 { grid-area: 3 / 10 / 4 / 11; } .num-28 { grid-area: 3 / 11 / 4 / 12; } .num-31 { grid-area: 3 / 12 / 4 / 13; } .num-34 { grid-area: 3 / 13 / 4 / 14; }
+        .col-3rd { grid-area: 1 / 14 / 2 / 15; } .col-2nd { grid-area: 2 / 14 / 3 / 15; } .col-1st { grid-area: 3 / 14 / 4 / 15; }
+        .dozen-1st { grid-area: 4 / 2 / 5 / 6; } .dozen-2nd { grid-area: 4 / 6 / 5 / 10; } .dozen-3rd { grid-area: 4 / 10 / 5 / 14; }
+        .low { grid-area: 5 / 2 / 6 / 4; } .even { grid-area: 5 / 4 / 6 / 6; } .red { grid-area: 5 / 6 / 6 / 8; } .black { grid-area: 5 / 8 / 6 / 10; } .odd { grid-area: 5 / 10 / 6 / 12; } .high { grid-area: 5 / 12 / 6 / 14; }
+        
+        #debugLog {
+            background-color: #1a202c;
+            font-family: monospace;
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid #4a5568;
+        }
+        .debug-entry {
+            padding: 4px 8px;
+            border-bottom: 1px solid #2d3748;
+            word-break: break-all;
+        }
+        /* --- Toggle Switch Styles --- */
+        .toggle-checkbox:checked {
+            transform: translateX(100%);
+            border-color: #48bb78;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #48bb78;
+        }
+        .toggle-checkbox {
+            transition: all 0.2s ease-in-out;
+            left: 0;
+        }
+        .toggle-label {
+            transition: all 0.2s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white p-4 lg:p-8">
+    
+    <button id="resetStatsIconButton" title="Reset Stats" class="fixed top-4 right-4 bg-gray-700 hover:bg-yellow-600 text-white p-2 rounded-full shadow-lg z-20 text-2xl flex items-center justify-center">
+        ♻️
+    </button>
+
+    <div class="max-w-7xl mx-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Panel: Controls -->
+            <div class="lg-col-span-1 bg-gray-800 p-6 rounded-lg shadow-lg">
+                <h1 class="text-2xl font-bold mb-4 text-center">Roulette Simulator</h1>
+
+                <div class="space-y-4">
+                     <div>
+                        <label for="baseBet" class="block text-sm font-medium text-gray-400">Base Bet Amount (per spot)</label>
+                        <input type="number" id="baseBet" value="0.00000001" step="0.00000001" class="w-full bg-gray-700 text-white border-gray-600 rounded-md mt-1 p-2">
+                    </div>
+                    <div>
+                        <label for="totalSpins" class="block text-sm font-medium text-gray-400">Number of Spins</label>
+                        <input type="number" id="totalSpins" value="1000" class="w-full bg-gray-700 text-white border-gray-600 rounded-md mt-1 p-2">
+                    </div>
+                    <div>
+                        <label for="increaseOnLoss" class="block text-sm font-medium text-gray-400">Increase on Loss Multiplier</label>
+                        <input type="number" id="increaseOnLoss" value="2" step="0.1" class="w-full bg-gray-700 text-white border-gray-600 rounded-md mt-1 p-2">
+                        <p class="text-xs text-gray-500 mt-1">e.g., 2 = Martingale. 1 = no increase.</p>
+                    </div>
+                     <div>
+                        <label for="onWinStrategy" class="block text-sm font-medium text-gray-400">On Win</label>
+                        <select id="onWinStrategy" class="w-full bg-gray-700 text-white border-gray-600 rounded-md mt-1 p-2">
+                            <option value="reset">Reset to Base Bet</option>
+                            <option value="keep">Keep Same Bet</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="onPushStrategy" class="block text-sm font-medium text-gray-400">On Push</label>
+                        <select id="onPushStrategy" class="w-full bg-gray-700 text-white border-gray-600 rounded-md mt-1 p-2">
+                            <option value="keep">Keep Same Bet</option>
+                            <option value="reset">Reset to Base Bet</option>
+                            <option value="increase">Increase Bet (use loss multiplier)</option>
+                        </select>
+                    </div>
+                     <div class="flex items-center justify-between mt-2">
+                        <label for="randomSeedMode" class="text-sm font-medium text-gray-400">Use Random Seeds</label>
+                        <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" name="randomSeedMode" id="randomSeedMode" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                            <label for="randomSeedMode" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
+                        </div>
+                    </div>
+                     <div class="flex items-center justify-between mt-2">
+                        <label for="debugMode" class="block text-sm font-medium text-gray-400">Debug Mode</label>
+                        <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" name="debugMode" id="debugMode" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                            <label for="debugMode" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 mt-6">
+                    <button id="startButton" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md">Start</button>
+                    <button id="betButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">Bet</button>
+                    <button id="stopButton" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md" disabled>Stop</button>
+                    <button id="pauseButton" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-md" disabled>Pause</button>
+                    <button id="resetButton" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md col-span-2">Reset All</button>
+                </div>
+                
+                <div id="messageBox" class="mt-4 text-center font-semibold"></div>
+            </div>
+
+            <!-- Right Panel: Board and Stats -->
+            <div class="lg:col-span-2 space-y-6">
+                 <!-- Stats Display -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div class="bg-gray-800 p-4 rounded-lg">
+                        <div class="text-sm text-gray-400">Balance</div>
+                        <input type="number" id="balanceDisplay" value="1.00000000" step="0.00000001" class="w-full text-center bg-transparent text-xl font-bold text-green-400 border-none p-0 focus:ring-0">
+                    </div>
+                    <div class="bg-gray-800 p-4 rounded-lg">
+                        <div class="text-sm text-gray-400">Profit</div>
+                        <div id="profitDisplay" class="text-xl font-bold">0.00000000</div>
+                    </div>
+                    <div class="bg-gray-800 p-4 rounded-lg">
+                        <div class="text-sm text-gray-400">Spins</div>
+                        <div id="spinsDisplay" class="text-xl font-bold">0 / 0</div>
+                    </div>
+                    <div class="bg-gray-800 p-4 rounded-lg">
+                        <div class="text-sm text-gray-400">Current Streak</div>
+                        <div id="streakDisplay" class="text-xl font-bold">0</div>
+                    </div>
+                </div>
+
+                <!-- Betting Board -->
+                <div class="bg-green-800 p-4 rounded-lg shadow-inner">
+                    <div id="bettingBoard" class="roulette-grid aspect-[2/1]">
+                        <!-- This will be populated by JavaScript -->
+                    </div>
+                </div>
+                <!-- Spin Result Display -->
+                 <div id="spinResultDisplay" class="text-center text-sm text-gray-400 mt-4 h-12">
+                    Click on the board to place your bets before starting the simulation.
+                </div>
+                <!-- Debug Log -->
+                <div id="debugLogContainer" class="hidden">
+                    <h3 class="text-lg font-semibold mb-2 text-gray-400">Debug Log</h3>
+                    <div id="debugLog" class="rounded-lg p-2 text-xs"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="lg:col-span-3 mt-8 text-center text-gray-500 text-sm">
+            <p id="copyright"></p>
+            <div class="mt-2 space-x-4">
+                <a href="https://discord.gg/ujbxY8jZS4" target="_blank" class="hover:text-purple-400 transition-colors">Join our Discord</a>
+                <span>|</span>
+                <a href="https://stake.com/?c=DqQgiy6i" target="_blank" class="hover:text-blue-400 transition-colors">Try Roulette on Stake.com</a>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // --- DOM Elements ---
+        const bettingBoard = document.getElementById('bettingBoard');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const resetButton = document.getElementById('resetButton');
+        const betButton = document.getElementById('betButton');
+        const resetStatsIconButton = document.getElementById('resetStatsIconButton');
+        const pauseButton = document.getElementById('pauseButton');
+        const messageBox = document.getElementById('messageBox');
+        const debugModeToggle = document.getElementById('debugMode');
+        const randomSeedToggle = document.getElementById('randomSeedMode');
+        const debugLogContainer = document.getElementById('debugLogContainer');
+        const debugLog = document.getElementById('debugLog');
+        
+        const balanceDisplay = document.getElementById('balanceDisplay');
+        const profitDisplay = document.getElementById('profitDisplay');
+        const spinsDisplay = document.getElementById('spinsDisplay');
+        const streakDisplay = document.getElementById('streakDisplay');
+        const spinResultDisplay = document.getElementById('spinResultDisplay');
+
+        // --- Simulation State ---
+        let simulationRunning = false;
+        let stopRequested = false;
+        let isPaused = false;
+        let placedBets = new Set();
+        let winningMarker = null;
+        let gameState = {}; // Holds all state for the current simulation run
+
+        // --- Roulette Wheel & Bet Definitions ---
+        const ROULETTE_WHEEL = [
+            { number: 0, color: 'green', parity: 'none' }, { number: 1, color: 'red', parity: 'odd' }, { number: 2, color: 'black', parity: 'even' },
+            { number: 3, color: 'red', parity: 'odd' }, { number: 4, color: 'black', parity: 'even' }, { number: 5, color: 'red', parity: 'odd' },
+            { number: 6, color: 'black', parity: 'even' }, { number: 7, color: 'red', parity: 'odd' }, { number: 8, color: 'black', parity: 'even' },
+            { number: 9, color: 'red', parity: 'odd' }, { number: 10, color: 'black', parity: 'even' }, { number: 11, color: 'black', parity: 'odd' },
+            { number: 12, color: 'red', parity: 'even' }, { number: 13, color: 'black', parity: 'odd' }, { number: 14, color: 'red', parity: 'even' },
+            { number: 15, color: 'black', parity: 'odd' }, { number: 16, color: 'red', parity: 'even' }, { number: 17, color: 'black', parity: 'odd' },
+            { number: 18, color: 'red', parity: 'even' }, { number: 19, color: 'red', parity: 'odd' }, { number: 20, color: 'black', parity: 'even' },
+            { number: 21, color: 'red', parity: 'odd' }, { number: 22, color: 'black', parity: 'even' }, { number: 23, color: 'red', parity: 'odd' },
+            { number: 24, color: 'black', parity: 'even' }, { number: 25, color: 'red', parity: 'odd' }, { number: 26, color: 'black', parity: 'even' },
+            { number: 27, color: 'red', parity: 'odd' }, { number: 28, color: 'black', parity: 'even' }, { number: 29, color: 'black', parity: 'odd' },
+            { number: 30, color: 'red', parity: 'even' }, { number: 31, color: 'black', parity: 'odd' }, { number: 32, color: 'red', parity: 'even' },
+            { number: 33, color: 'black', parity: 'odd' }, { number: 34, color: 'red', parity: 'even' }, { number: 35, color: 'black', parity: 'odd' },
+            { number: 36, color: 'red', parity: 'even' }
+        ];
+
+        const BET_TYPES = {
+            // Numbers
+            ...Object.fromEntries(Array.from({ length: 37 }, (_, i) => [`num-${i}`, { name: `Number ${i}`, numbers: [i], payout: 36 }])),
+            // Outside Bets
+            'low': { name: '1-18', numbers: Array.from({ length: 18 }, (_, i) => i + 1), payout: 2 },
+            'high': { name: '19-36', numbers: Array.from({ length: 18 }, (_, i) => i + 19), payout: 2 },
+            'even': { name: 'Even', numbers: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36], payout: 2 },
+            'odd': { name: 'Odd', numbers: [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35], payout: 2 },
+            'red': { name: 'Red', numbers: [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36], payout: 2 },
+            'black': { name: 'Black', numbers: [2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35], payout: 2 },
+            'dozen-1st': { name: '1st 12', numbers: Array.from({ length: 12 }, (_, i) => i + 1), payout: 3 },
+            'dozen-2nd': { name: '2nd 12', numbers: Array.from({ length: 12 }, (_, i) => i + 13), payout: 3 },
+            'dozen-3rd': { name: '3rd 12', numbers: Array.from({ length: 12 }, (_, i) => i + 25), payout: 3 },
+            'col-1st': { name: '1st Column', numbers: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34], payout: 3 },
+            'col-2nd': { name: '2nd Column', numbers: [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35], payout: 3 },
+            'col-3rd': { name: '3rd Column', numbers: [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36], payout: 3 },
+        };
+
+        // --- Board Creation ---
+        function createBoard() {
+            bettingBoard.innerHTML = ''; // Clear existing board
+            
+            const spots = [
+                // Numbers
+                ...Array.from({length: 37}, (_, i) => ({ id: `num-${i}`, text: i, area: `num-${i}` })),
+                // Outside bets
+                { id: 'low', text: '1-18', area: 'low' }, { id: 'high', text: '19-36', area: 'high' },
+                { id: 'even', text: 'Even', area: 'even' }, { id: 'odd', text: 'Odd', area: 'odd' },
+                { id: 'red', text: 'Red', area: 'red', color: 'bg-red-600' }, { id: 'black', text: 'Black', area: 'black', color: 'bg-gray-900' },
+                { id: 'dozen-1st', text: '1st 12', area: 'dozen-1st' }, { id: 'dozen-2nd', text: '2nd 12', area: 'dozen-2nd' }, { id: 'dozen-3rd', text: '3rd 12', area: 'dozen-3rd' },
+                { id: 'col-1st', text: '2:1', area: 'col-1st' }, { id: 'col-2nd', text: '2:1', area: 'col-2nd' }, { id: 'col-3rd', text: '2:1', area: 'col-3rd' }
+            ];
+
+            spots.forEach(spot => {
+                const spotEl = document.createElement('div');
+                spotEl.id = spot.id;
+                spotEl.dataset.betType = spot.id;
+                
+                const numberInfo = ROULETTE_WHEEL.find(p => p.number === spot.text);
+                let bgColor = 'bg-green-700'; // Default
+                if (spot.color) {
+                    bgColor = spot.color;
+                } else if (numberInfo) {
+                    bgColor = numberInfo.color === 'red' ? 'bg-red-600' : numberInfo.color === 'black' ? 'bg-gray-900' : 'bg-green-600';
+                }
+
+                spotEl.className = `bet-spot ${bgColor} ${spot.area} flex items-center justify-center text-white font-bold text-lg rounded-md cursor-pointer`;
+                spotEl.textContent = spot.text;
+                spotEl.addEventListener('click', toggleBet);
+                bettingBoard.appendChild(spotEl);
+            });
+        }
+        
+        function toggleBet(event) {
+            if (simulationRunning) return;
+            const betType = event.target.dataset.betType;
+            const spotEl = document.getElementById(betType);
+
+            if (placedBets.has(betType)) {
+                placedBets.delete(betType);
+                const chip = spotEl.querySelector('.bet-chip');
+                if (chip) spotEl.removeChild(chip);
+            } else {
+                placedBets.add(betType);
+                const chip = document.createElement('div');
+                chip.className = 'bet-chip';
+                chip.textContent = 'BET';
+                spotEl.appendChild(chip);
+            }
+        }
+        
+        function clearChips() {
+            placedBets.forEach(betType => {
+                const spotEl = document.getElementById(betType);
+                 if (spotEl) {
+                    const chip = spotEl.querySelector('.bet-chip');
+                    if (chip) spotEl.removeChild(chip);
+                }
+            });
+            placedBets.clear();
+        }
+
+        function showWinningMarker(number) {
+            if (winningMarker) winningMarker.remove();
+            
+            const spotId = `num-${number}`;
+            const spotEl = document.getElementById(spotId);
+            if (spotEl) {
+                winningMarker = document.createElement('div');
+                winningMarker.className = 'winning-marker';
+                spotEl.appendChild(winningMarker);
+            }
+        }
+        
+        // --- Random Seed Generation ---
+        function generateRandomClientSeed(length) {
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += characters.charAt(Math.floor(Math.random() * characters.length));
+            }
+            return result;
+        }
+
+        function generateRandomServerSeed() {
+            const array = new Uint8Array(32); // 32 bytes for a 64-char hex string
+            window.crypto.getRandomValues(array);
+            return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+        }
+
+
+        // --- Provably Fair Logic (Browser-based) ---
+        async function sha256(key, msg) {
+            const keyBytes = new TextEncoder().encode(key);
+            const msgBytes = new TextEncoder().encode(msg);
+            const cryptoKey = await window.crypto.subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+            const signature = await window.crypto.subtle.sign('HMAC', cryptoKey, msgBytes);
+            return new Uint8Array(signature);
+        }
+
+        async function* byteGenerator(serverSeed, clientSeed, nonce) {
+            let currentRound = 0;
+            let currentNonce = nonce;
+            while (true) {
+                const hmac = await sha256(serverSeed, `${clientSeed}:${currentNonce}:${currentRound}`);
+                for (let i = 0; i < hmac.length; i++) {
+                    yield hmac[i];
+                }
+                currentRound++;
+            }
+        }
+        
+        async function getRouletteSpin(generator) {
+            const bytes = [];
+            for (let i = 0; i < 4; i++) {
+                bytes.push((await generator.next()).value);
+            }
+            const floatResult = bytes.reduce((acc, value, i) => acc + value / Math.pow(256, i + 1), 0);
+            return Math.floor(floatResult * 37);
+        }
+
+        // --- Core Simulation Logic ---
+        function initializeSimulation(isContinuation = false) {
+            const currentBalance = parseFloat(balanceDisplay.value);
+            const baseBet = parseFloat(document.getElementById('baseBet').value);
+            const totalSpins = parseInt(document.getElementById('totalSpins').value);
+
+            if (placedBets.size === 0) {
+                updateMessage("Please place at least one bet on the board.", 'text-yellow-400');
+                return false;
+            }
+            if (isNaN(currentBalance) || isNaN(baseBet) || isNaN(totalSpins) || baseBet <= 0 || totalSpins <= 0) {
+                updateMessage("Please enter valid simulation parameters.", 'text-yellow-400');
+                return false;
+            }
+            
+            let serverSeed, clientSeed, startNonce;
+            if (randomSeedToggle.checked) {
+                serverSeed = generateRandomServerSeed();
+                clientSeed = generateRandomClientSeed(10);
+                startNonce = Math.floor(Math.random() * 1000000) + 1;
+            } else {
+                serverSeed = "d83729554eeed8965116385e0486dab8a1f6634ae1a9e8139e849ab75f17341d";
+                clientSeed = "wcvqnIM521";
+                startNonce = 1;
+            }
+
+            gameState = {
+                isInitialized: true,
+                balance: currentBalance,
+                startBalance: isContinuation ? gameState.startBalance : currentBalance,
+                baseBet: baseBet,
+                totalSpins: totalSpins,
+                increaseOnLoss: parseFloat(document.getElementById('increaseOnLoss').value),
+                onWinStrategy: document.getElementById('onWinStrategy').value,
+                onPushStrategy: document.getElementById('onPushStrategy').value,
+                profit: isContinuation ? gameState.profit : 0,
+                currentStreak: isContinuation ? gameState.currentStreak : 0,
+                betMultiplier: isContinuation ? gameState.betMultiplier : 1,
+                spinCount: isContinuation ? gameState.spinCount : 0,
+                nonce: isContinuation ? gameState.nonce : startNonce,
+                generator: isContinuation ? gameState.generator : byteGenerator(serverSeed, clientSeed, startNonce),
+                serverSeed: serverSeed,
+                clientSeed: clientSeed
+            };
+            
+            updateStats();
+            return true;
+        }
+
+        async function executeSpinForStrategy() {
+            if (gameState.spinCount >= gameState.totalSpins) {
+                updateMessage("Max spins reached.", 'text-green-400');
+                return { status: 'finished' };
+            }
+
+            const betAmountPerSpot = gameState.baseBet * gameState.betMultiplier;
+            const totalBetAmount = betAmountPerSpot * placedBets.size;
+            
+            if (totalBetAmount > gameState.balance) {
+                updateMessage(`Busted! Bet of ${totalBetAmount.toFixed(8)} exceeds balance of ${gameState.balance.toFixed(8)}.`, 'text-red-500');
+                return { status: 'busted' };
+            }
+
+            gameState.balance -= totalBetAmount;
+            gameState.spinCount++;
+            
+            const roll = await getRouletteSpin(gameState.generator);
+            const currentNonce = gameState.nonce;
+            gameState.nonce++;
+            showWinningMarker(roll);
+
+            let roundWinnings = 0;
+            placedBets.forEach(betType => {
+                const bet = BET_TYPES[betType];
+                if (bet.numbers.includes(roll)) {
+                    roundWinnings += betAmountPerSpot * bet.payout;
+                }
+            });
+            
+            gameState.balance += roundWinnings;
+            gameState.profit = gameState.balance - gameState.startBalance;
+            
+            let outcome = 'loss';
+            if (totalBetAmount > 0) {
+                const payoutRatio = roundWinnings / totalBetAmount;
+                const epsilon = 1e-9;
+                if (payoutRatio > 1 + epsilon) {
+                    outcome = 'win';
+                } else if (payoutRatio < 1 - epsilon) {
+                    outcome = 'loss';
+                } else {
+                    outcome = 'push';
+                }
+            } else if (roundWinnings > 0) {
+                 outcome = 'win';
+            } else {
+                 outcome = 'push';
+            }
+
+            if (outcome === 'win') {
+                gameState.currentStreak = gameState.currentStreak >= 0 ? gameState.currentStreak + 1 : 1;
+                if (gameState.onWinStrategy === 'reset') {
+                    gameState.betMultiplier = 1;
+                }
+            } else if (outcome === 'loss') {
+                gameState.currentStreak = gameState.currentStreak <= 0 ? gameState.currentStreak - 1 : -1;
+                gameState.betMultiplier *= gameState.increaseOnLoss;
+            } else { // PUSH
+                const pushStrategy = gameState.onPushStrategy;
+                if (pushStrategy === 'reset') {
+                    gameState.betMultiplier = 1;
+                } else if (pushStrategy === 'increase') {
+                    gameState.betMultiplier *= gameState.increaseOnLoss;
+                }
+            }
+
+            updateStats();
+            return { status: 'ok', roll, totalBetAmount, roundWinnings, outcome, nonce: currentNonce };
+        }
+
+        // --- Main Simulation Runner (for Start button) ---
+        async function runContinuousSimulation() {
+            if (simulationRunning) return;
+            if (!gameState.isInitialized && !initializeSimulation()) return;
+
+            simulationRunning = true;
+            stopRequested = false;
+            isPaused = false;
+            setControlsState(true);
+            const isDebugMode = debugModeToggle.checked;
+            debugLogContainer.classList.toggle('hidden', !isDebugMode);
+
+            updateMessage("Simulation running...", 'text-blue-400');
+            spinResultDisplay.innerHTML = ''; 
+            
+            while(gameState.spinCount < gameState.totalSpins && !stopRequested) {
+                while (isPaused && !stopRequested) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                if (stopRequested) break;
+                
+                const result = await executeSpinForStrategy();
+                
+                if (isDebugMode) {
+                    logDebugMessage(result);
+                }
+
+                if (result.status === 'busted' || result.status === 'finished') break;
+                
+                await new Promise(resolve => setTimeout(resolve, isDebugMode ? 1000 : 0));
+            }
+            
+            if (stopRequested) {
+                updateMessage("Simulation stopped by user.", 'text-yellow-400');
+            } else if (gameState.spinCount >= gameState.totalSpins) {
+                updateMessage("Simulation complete.", 'text-green-400');
+            }
+            
+            simulationRunning = false;
+            isPaused = false;
+            setControlsState(false);
+            
+            // Reset pause button state
+            pauseButton.textContent = 'Pause';
+            pauseButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            pauseButton.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
+        }
+
+        // --- Handler for Single Bet Button ---
+        async function handleSingleBetClick() {
+             if (simulationRunning) return;
+            if (!gameState.isInitialized && !initializeSimulation()) return;
+
+            setControlsState(true);
+
+            const baseBet = parseFloat(document.getElementById('baseBet').value);
+            const totalBetAmount = baseBet * placedBets.size;
+
+            if (totalBetAmount > gameState.balance) {
+                updateMessage(`Bet of ${totalBetAmount.toFixed(8)} exceeds balance.`, 'text-red-500');
+                setControlsState(false);
+                return;
+            }
+
+            gameState.balance -= totalBetAmount;
+            
+            const roll = await getRouletteSpin(gameState.generator);
+            const currentNonce = gameState.nonce;
+            gameState.nonce++;
+            showWinningMarker(roll);
+
+            let roundWinnings = 0;
+            placedBets.forEach(betType => {
+                const bet = BET_TYPES[betType];
+                if (bet.numbers.includes(roll)) {
+                    roundWinnings += baseBet * bet.payout;
+                }
+            });
+
+            gameState.balance += roundWinnings;
+            gameState.profit = gameState.balance - gameState.startBalance;
+
+            updateStats();
+            updateSpinResult(roll, totalBetAmount, roundWinnings);
+
+            setControlsState(false);
+        }
+
+        // --- UI & State Helpers ---
+        function updateStats() {
+            if (!gameState.isInitialized) return;
+            balanceDisplay.value = parseFloat(gameState.balance).toFixed(8);
+            profitDisplay.textContent = parseFloat(gameState.profit).toFixed(8);
+            spinsDisplay.textContent = `${gameState.spinCount} / ${gameState.totalSpins}`;
+            streakDisplay.textContent = gameState.currentStreak;
+
+            profitDisplay.className = `text-xl font-bold ${gameState.profit >= 0 ? 'text-green-400' : 'text-red-400'}`;
+            streakDisplay.className = `text-xl font-bold ${gameState.currentStreak >= 0 ? 'text-green-400' : 'text-red-400'}`;
+        }
+
+        function updateMessage(msg, colorClass) {
+            messageBox.textContent = msg;
+            messageBox.className = `mt-4 text-center font-semibold ${colorClass}`;
+        }
+        
+        function updateSpinResult(roll, betAmount, winnings) {
+            const resultInfo = ROULETTE_WHEEL[roll];
+            const profit = winnings - betAmount;
+
+            let resultColor = 'text-green-400';
+            if (resultInfo.color === 'red') resultColor = 'text-red-400';
+            if (resultInfo.color === 'black') resultColor = 'text-gray-300';
+
+            let profitColor = 'text-gray-400';
+            if (profit > 0) profitColor = 'text-green-400';
+            if (profit < 0) profitColor = 'text-red-400';
+
+            spinResultDisplay.className = 'mt-4 h-12';
+            spinResultDisplay.innerHTML = `
+                <div class="grid grid-cols-3 gap-4 text-center bg-gray-800 p-2 rounded-lg items-center">
+                    <div>
+                        <span class="font-medium text-gray-400">Result: </span> 
+                        <span class="font-bold text-lg ${resultColor}">${roll}</span>
+                    </div>
+                    <div><span class="font-medium text-gray-400">Total Bet: </span> <span class="font-bold">${betAmount.toFixed(8)}</span></div>
+                    <div class="${profitColor}"><span class="font-medium text-gray-400">Winnings: </span> <span class="font-bold">${winnings.toFixed(8)}</span></div>
+                </div>
+            `;
+        }
+        
+        function logDebugMessage(result) {
+            if (!result || result.status !== 'ok') return;
+
+            const div = document.createElement('div');
+            const colorClass = result.outcome === 'win' ? 'text-green-400' : result.outcome === 'push' ? 'text-yellow-400' : 'text-red-400';
+            div.className = `debug-entry ${colorClass}`;
+            
+            const mainInfo = [
+                `Bet: ${gameState.spinCount}`,
+                `Roll: ${result.roll} (${ROULETTE_WHEEL[result.roll].color})`,
+                `Outcome: ${result.outcome.toUpperCase()}`,
+                `Bet Amt: ${(result.totalBetAmount).toFixed(8)}`,
+                `Balance: ${gameState.balance.toFixed(8)}`,
+                `Streak: ${gameState.currentStreak}`
+            ].join(' | ');
+            
+            div.innerHTML = `
+                <p>${mainInfo}</p>
+                <p class="text-gray-500 text-xs">Nonce: ${result.nonce} | CS: ${gameState.clientSeed} | SS: ${gameState.serverSeed}</p>
+            `;
+
+            debugLog.insertBefore(div, debugLog.firstChild);
+            if (debugLog.children.length > 100) {
+                debugLog.removeChild(debugLog.lastChild);
+            }
+        }
+        
+        function setControlsState(isRunning) {
+            startButton.disabled = isRunning;
+            stopButton.disabled = !isRunning;
+            pauseButton.disabled = !isRunning;
+            resetButton.disabled = isRunning;
+            betButton.disabled = isRunning;
+            resetStatsIconButton.disabled = isRunning;
+            balanceDisplay.disabled = isRunning;
+            document.getElementById('baseBet').disabled = isRunning;
+            document.getElementById('totalSpins').disabled = isRunning;
+            document.getElementById('increaseOnLoss').disabled = isRunning;
+            document.getElementById('onWinStrategy').disabled = isRunning;
+            document.getElementById('onPushStrategy').disabled = isRunning;
+            debugModeToggle.disabled = isRunning;
+            randomSeedToggle.disabled = isRunning;
+        }
+
+        function resetStats() {
+            if (simulationRunning) return;
+            
+            const wasInitialized = gameState.isInitialized;
+            if (!wasInitialized) {
+                 const initialBalance = parseFloat(balanceDisplay.value) || 1.0;
+                 const totalSpins = parseInt(document.getElementById('totalSpins').value) || 1000;
+                 balanceDisplay.value = initialBalance.toFixed(8);
+                 profitDisplay.textContent = '0.00000000';
+                 spinsDisplay.textContent = `0 / ${totalSpins}`;
+                 streakDisplay.textContent = '0';
+                return;
+            };
+
+            initializeSimulation(true); // Re-initialize to capture any UI changes
+            
+            const currentBalance = parseFloat(balanceDisplay.value);
+            gameState.startBalance = currentBalance;
+            gameState.balance = currentBalance;
+            gameState.profit = 0;
+            gameState.spinCount = 0;
+            gameState.currentStreak = 0;
+            gameState.betMultiplier = 1;
+
+            updateStats();
+            updateMessage("Stats have been reset.", 'text-gray-400');
+            if (winningMarker) winningMarker.remove();
+            spinResultDisplay.innerHTML = '';
+            debugLog.innerHTML = '';
+        }
+
+        function resetSimulation() {
+            if (simulationRunning) return;
+            
+            stopRequested = true;
+            simulationRunning = false;
+            isPaused = false;
+            setControlsState(false);
+            
+            pauseButton.textContent = 'Pause';
+            pauseButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            pauseButton.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
+
+            gameState = { isInitialized: false };
+            
+            const initialBalance = 1.0;
+            const totalSpins = parseInt(document.getElementById('totalSpins').value) || 1000;
+            
+            balanceDisplay.value = initialBalance.toFixed(8);
+            profitDisplay.textContent = '0.00000000';
+            spinsDisplay.textContent = `0 / ${totalSpins}`;
+            streakDisplay.textContent = '0';
+            
+            updateMessage("Ready to start. Place your bets.", 'text-gray-400');
+            clearChips();
+            if(winningMarker) winningMarker.remove();
+            
+            spinResultDisplay.className = 'text-center text-sm text-gray-400 mt-4 h-12';
+            spinResultDisplay.innerHTML = 'Click on the board to place your bets before starting the simulation.';
+            debugLog.innerHTML = '';
+            debugLogContainer.classList.add('hidden');
+        }
+
+        // --- Event Listeners ---
+        startButton.addEventListener('click', runContinuousSimulation);
+        betButton.addEventListener('click', handleSingleBetClick);
+        stopButton.addEventListener('click', () => { 
+            stopRequested = true;
+            isPaused = false; 
+        });
+        pauseButton.addEventListener('click', () => {
+            if (!simulationRunning) return;
+            isPaused = !isPaused;
+            if (isPaused) {
+                pauseButton.textContent = 'Resume';
+                pauseButton.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
+                pauseButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                updateMessage("Simulation paused.", 'text-yellow-400');
+            } else {
+                pauseButton.textContent = 'Pause';
+                pauseButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                pauseButton.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
+                updateMessage("Simulation running...", 'text-blue-400');
+            }
+        });
+        resetButton.addEventListener('click', resetSimulation);
+        resetStatsIconButton.addEventListener('click', resetStats);
+        
+        debugModeToggle.addEventListener('change', (e) => {
+            if (!simulationRunning) {
+                debugLogContainer.classList.toggle('hidden', !e.target.checked);
+            }
+        });
+        balanceDisplay.addEventListener('change', () => {
+            if (!simulationRunning) {
+                const newBalance = parseFloat(balanceDisplay.value);
+                 if (gameState.isInitialized && !isNaN(newBalance)) {
+                    gameState.balance = newBalance;
+                    gameState.startBalance = newBalance; // Reset profit origin
+                    gameState.profit = 0;
+                    updateStats();
+                }
+            }
+        });
+        
+        // --- Initialization ---
+        window.onload = () => {
+            createBoard();
+            resetSimulation();
+            document.getElementById('copyright').textContent = `© ${new Date().getFullYear()} MrBtcGambler - Version 1.01`;
+        };
+    </script>
+</body>
+</html>
+
